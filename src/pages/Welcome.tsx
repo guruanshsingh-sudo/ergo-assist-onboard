@@ -1,27 +1,70 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Zap, Lock, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
 
 const Welcome = () => {
   const navigate = useNavigate();
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const handleGetStarted = () => {
+    setIsTransitioning(true);
+    setTimeout(() => navigate('/auth'), 800);
+  };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-4">
-      {/* Animated gradient background */}
+      {/* Liquid fill transition effect */}
+      <AnimatePresence>
+        {isTransitioning && (
+          <motion.div
+            className="fixed inset-0 z-50 bg-gradient-to-br from-primary via-secondary to-accent"
+            initial={{ clipPath: 'circle(0% at 50% 100%)' }}
+            animate={{ clipPath: 'circle(150% at 50% 100%)' }}
+            transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Constantly moving animated gradient background */}
       <motion.div
         className="absolute inset-0 opacity-30"
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.3 }}
         transition={{ duration: 2 }}
       >
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl" />
+        <motion.div 
+          className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl"
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -100, 0],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div 
+          className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl"
+          animate={{
+            x: [0, -100, 0],
+            y: [0, 100, 0],
+          }}
+          transition={{
+            duration: 18,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
         <motion.div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-3xl"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 180, 360],
+            x: [0, 50, -50, 0],
+            y: [0, -50, 50, 0],
           }}
           transition={{
             duration: 20,
@@ -107,10 +150,10 @@ const Welcome = () => {
                 y: -8,
                 transition: { type: "spring", stiffness: 400 }
               }}
-              className="relative group"
+              className="relative group h-full"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-              <div className="relative bg-card border border-border rounded-2xl p-6 shadow-card group-hover:shadow-glow transition-all duration-500 backdrop-blur-sm">
+              <div className="relative bg-card border border-border rounded-2xl p-6 shadow-card group-hover:shadow-glow transition-all duration-500 backdrop-blur-sm h-full flex flex-col">
                 <motion.div
                   whileHover={{ rotate: [0, -10, 10, -10, 0] }}
                   transition={{ duration: 0.5 }}
@@ -118,7 +161,7 @@ const Welcome = () => {
                   <feature.icon className="w-8 h-8 text-primary mb-3" />
                 </motion.div>
                 <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                <p className="text-sm text-muted-foreground flex-grow">{feature.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -136,7 +179,7 @@ const Welcome = () => {
             whileTap={{ scale: 0.95 }}
           >
             <Button
-              onClick={() => navigate('/auth')}
+              onClick={handleGetStarted}
               size="lg"
               className="relative w-full md:w-auto px-12 py-6 text-lg font-semibold rounded-2xl bg-gradient-to-r from-primary to-secondary text-primary-foreground shadow-glow overflow-hidden group"
             >
