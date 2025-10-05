@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, User, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ChatBot from '@/components/ChatBot';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -144,6 +145,7 @@ const Auth = () => {
           </div>
         </motion.div>
       </motion.div>
+      <ChatBot />
     </div>
   );
 };

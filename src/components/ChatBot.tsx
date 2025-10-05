@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { useOnboarding } from '@/contexts/OnboardingContext';
+import { useLocation } from 'react-router-dom';
 
 interface Message {
   id: string;
@@ -16,14 +19,36 @@ const ChatBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi! I'm ErgoAssist, your insurance companion. Ask me anything about insurance terms like IDV, NCB, Premium, or any other questions!",
+      text: "Hi! I'm ErgoAssist, your insurance companion. Ask me anything about insurance terms or get help with the onboarding process!",
       isBot: true,
     },
   ]);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { data } = useOnboarding();
+  const location = useLocation();
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const getPageContext = () => {
+    const path = location.pathname;
+    let currentStep = '';
+    let pageContent = '';
+
+    if (path === '/onboarding') {
+      currentStep = 'onboarding';
+      pageContent = 'The user is filling out vehicle information, policy preferences, and owner details.';
+    } else if (path === '/quotes') {
+      currentStep = 'quote selection';
+      pageContent = 'The user is reviewing insurance plan options and comparing coverage.';
+    } else if (path === '/confirmation') {
+      currentStep = 'confirmation';
+      pageContent = 'The user is reviewing their selected plan before proceeding to buy.';
+    }
+
+    return { currentStep, pageContent };
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -32,36 +57,47 @@ const ChatBot = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = input;
     setInput('');
+    setIsLoading(true);
 
-    // Mock bot response
-    setTimeout(() => {
+    try {
+      const context = {
+        ...getPageContext(),
+        formData: data,
+      };
+
+      const { data: responseData, error } = await supabase.functions.invoke('chat-assistant', {
+        body: {
+          messages: messages
+            .filter(m => m.id !== '1') // Don't send initial greeting
+            .map(m => ({
+              role: m.isBot ? 'assistant' : 'user',
+              content: m.text,
+            }))
+            .concat([{ role: 'user', content: userInput }]),
+          context,
+        },
+      });
+
+      if (error) throw error;
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: getBotResponse(input),
+        text: responseData.message || "I'm sorry, I couldn't process that. Please try again.",
         isBot: true,
       };
       setMessages((prev) => [...prev, botMessage]);
-    }, 1000);
-  };
-
-  const getBotResponse = (query: string): string => {
-    const lowerQuery = query.toLowerCase();
-    
-    if (lowerQuery.includes('idv')) {
-      return "IDV (Insured Declared Value) is the current market value of your vehicle. It's the maximum amount you'll receive if your vehicle is stolen or completely damaged. It decreases every year due to depreciation.";
-    } else if (lowerQuery.includes('ncb') || lowerQuery.includes('no claim bonus')) {
-      return "NCB (No Claim Bonus) is a discount you get on your premium for not making any claims in the previous year. It can range from 20% to 50% and helps reduce your insurance costs!";
-    } else if (lowerQuery.includes('premium')) {
-      return "Premium is the amount you pay to the insurance company for your coverage. It's calculated based on factors like your vehicle's IDV, age, location, and coverage type.";
-    } else if (lowerQuery.includes('deductible')) {
-      return "A deductible is the amount you pay from your pocket before the insurance kicks in. A higher deductible means lower premium, but you'll pay more during claims.";
-    } else if (lowerQuery.includes('comprehensive')) {
-      return "Comprehensive insurance covers both third-party liabilities and own damage to your vehicle. It's the most complete protection available for your vehicle.";
-    } else if (lowerQuery.includes('third party')) {
-      return "Third-party insurance covers damages or injuries you cause to others. It's mandatory by law but doesn't cover your own vehicle's damages.";
-    } else {
-      return "I'm here to help! Try asking about common insurance terms like IDV, NCB, Premium, Deductible, Comprehensive coverage, or Third-party insurance.";
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble connecting right now. Please try again in a moment.",
+        isBot: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -127,16 +163,22 @@ const ChatBot = () => {
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
                   placeholder="Ask me anything..."
+                  disabled={isLoading}
                   className="bg-background border-border rounded-xl h-10"
                 />
                 <Button
                   onClick={handleSend}
                   size="icon"
+                  disabled={isLoading}
                   className="rounded-xl h-10 w-10 bg-primary hover:bg-primary/90"
                 >
-                  <Send className="w-4 h-4" />
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
